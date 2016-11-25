@@ -12,6 +12,9 @@
  * This engine is available globally via the Engine variable and it also makes
  * the canvas' context (ctx) object globally available to make writing app.js
  * a little simpler to work with.
+
+ * i have move the gameboard logic to Board, let the Engine only control the
+ * drawing of screen.
  */
 
 var Engine = (function(global) {

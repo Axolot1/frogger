@@ -34,7 +34,7 @@ Board.prototype.reset = function() {
     this.player.reset();
     this.enemies.forEach(function(bug) {
         bug.reset();
-    })
+    });
     this.counter.reset();
     this.render();
 };
@@ -66,7 +66,9 @@ Board.prototype.render = function() {
     this.enemies.forEach(function(enemy) {
         enemy.render();
     });
-    this.player.render();
+    if (!this.picker.isSeleting) {
+        this.player.render();
+    }
     this.counter.render();
 
 };
@@ -78,6 +80,7 @@ Board.prototype.update = function(dt) {
         enemy.update(dt);
     });
     this.checkCollisions();
+    this.picker.update();
 };
 
 Board.prototype.checkCollisions = function() {
@@ -104,7 +107,7 @@ Board.prototype.playerWin = function() {
     this.player.reset();
 };
 
-/*no heart left, game over, shower the scores*/
+/*no heart left, game over, showe the scores*/
 Board.prototype.gameOver = function(scores) {
     //if player win, reset all game
     this.reset();
@@ -121,7 +124,16 @@ Board.prototype.gameOver = function(scores) {
 
 /*receive input from keyboard, move the player*/
 Board.prototype.handleInput = function(dir) {
-    this.player.move(dir);
+    if (this.player.isInPickerZone()) { //player in Selector zone
+        if (dir === 'space') {
+            this.picker.toggleSelect(this.player);
+        }
+        if (!this.picker.isSeleting) {
+            this.player.move(dir);
+        }
+    } else {
+        this.player.move(dir);
+    }
 };
 
 // Enemies our player must avoid
@@ -173,17 +185,18 @@ Enemy.prototype.reset = function() {
 // This class requires an update(), render() and
 // a handleInput() method.
 var Player = function() {
-    this.sprite = 'images/char-horn-girl.png';
+    this.sprite = 'images/char-boy.png';
     this.width = 75; //actual width
     this.height = 93; //actual height
     this.reset();
-}
+};
 
 Player.prototype.reset = function() {
     this.x = 202;
     this.y = 390; //54 + 84 * 4
 };
 
+/*player's real position*/
 Player.prototype.realX = function() {
     return this.x + 13;
 };
@@ -215,16 +228,20 @@ Player.prototype.move = function(dir) {
     }
 };
 
+Player.prototype.isInPickerZone = function() {
+    return this.x === 0 && this.y === 390;
+};
+
 Player.prototype.render = function() {
     ctx.drawImage(Resources.get(this.sprite), this.x, this.y);
-}
+};
 
 /*game counter board*/
 var GameCounter = function() {
     this.numHeart = 3;
     this.scores = 0;
     this.heartIco = "images/Heart.png";
-}
+};
 
 GameCounter.prototype.reset = function() {
     this.numHeart = 3;
@@ -244,22 +261,27 @@ GameCounter.prototype.reduceHeart = function() {
     }
 };
 
+
 GameCounter.prototype.addScore = function() {
     this.scores += 100;
 };
 
+// TODO: add gem and heart to game to have more fun
 var Bonus = function() {
     this.stuff = {
         heart: "images/Heart.png",
         GemB: "images/Gem Blue.png",
         GemG: "images/Gem Green.png",
         GemO: "images/Gem Orange.png"
-    }
-}
+    };
+};
 
+
+/*char Selector on the bottom left of game board*/
 var CharPicker = function() {
     this.x = 0;
     this.y = 376;
+    this.charY = 390;
     this.icon = "images/Selector.png";
     this.charArray = [
         'images/char-boy.png',
@@ -268,12 +290,38 @@ var CharPicker = function() {
         'images/char-cat-girl.png',
         'images/char-princess-girl.png'
     ];
-}
-
-CharPicker.prototype.render = function () {
-    ctx.drawImage(Resources.get(this.icon), this.x, this.y);
+    this.isSeleting = false;
+    this.curIndex = 0;
+    this.lastTime = 0;
 };
 
+
+CharPicker.prototype.render = function() {
+    ctx.drawImage(Resources.get(this.icon), this.x, this.y);
+    if (this.isSeleting) {
+        ctx.drawImage(Resources.get(this.charArray[this.curIndex]), this.x, this.charY);
+    }
+};
+
+/*change char every 0.5s*/
+CharPicker.prototype.update = function() {
+    var now = Date.now();
+    var dt = (now - this.lastTime) / 1000.0;
+    if (dt > 0.5) {
+        if (++this.curIndex === this.charArray.length) {
+            this.curIndex = 0;
+        }
+        this.lastTime = now;
+    }
+};
+
+/*toggle the selector when press "space"*/
+CharPicker.prototype.toggleSelect = function(player) {
+    this.isSeleting = !this.isSeleting;
+    if(!this.isSeleting){
+        player.sprite = this.charArray[this.curIndex];
+    }
+};
 
 
 
@@ -298,7 +346,8 @@ document.addEventListener('keyup', function(e) {
         37: 'left',
         38: 'up',
         39: 'right',
-        40: 'down'
+        40: 'down',
+        32: 'space'
     };
 
     board.handleInput(allowedKeys[e.keyCode]);
