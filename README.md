@@ -1,5 +1,8 @@
 arcade-game
 ===============================
+####Open `index.html` in your browser to start the game, move the player to river to win scores.
+
+
 __Player__:Left key move the player to the left, right key to the right, up move the player up and down move the player down.
 
 __Selector__: move the sprite into the Selector zone, press "space" to select a sprite, press "space" to confirm.
