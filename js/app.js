@@ -1,9 +1,3 @@
-function getRandomInt(min, max) {
-    min = Math.ceil(min);
-    max = Math.floor(max);
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
 /*The Game Board hold the player, enemies and some other stuff,
   it control the game update logic and render the things in it.*/
 var Board = function(player, enemies, counter, picker) {
@@ -78,23 +72,13 @@ Board.prototype.update = function(dt) {
     if (!this.isActive) return;
     this.enemies.forEach(function(enemy) {
         enemy.update(dt);
-    });
-    this.checkCollisions();
-    this.picker.update();
-};
-
-Board.prototype.checkCollisions = function() {
-    this.enemies.forEach(function(bug) {
-        if (this.player.realX() < bug.realX() + bug.width &&
-            this.player.realX() + this.player.width > bug.realX() &&
-            this.player.realY() < bug.realY() + bug.height &&
-            this.player.realY() + this.player.height > bug.realY()) {
-            //if player fail, reset the player position, remain the bugs speed.
+        //check collision
+        if (enemy.isCollised(this.player)) {
             this.player.reset();
             this.counter.reduceHeart();
-            return;
         }
     }, this);
+    this.picker.update();
 };
 
 //get notify when player win the game
@@ -136,6 +120,17 @@ Board.prototype.handleInput = function(dir) {
     }
 };
 
+var Character = function(sprite, x, y) {
+    this.sprite = sprite;
+    this.x = x;
+    this.y = y;
+}
+
+Character.prototype.render = function() {
+    ctx.drawImage(Resources.get(this.sprite), this.x, this.y);
+};
+
+
 // Enemies our player must avoid
 var Enemy = function(row) {
     // Variables applied to each of our instances go here,
@@ -143,12 +138,22 @@ var Enemy = function(row) {
 
     // The image/sprite for our enemies, this uses
     // a helper we've provided to easily load images
-    this.sprite = 'images/enemy-bug.png';
-    this.x = getRandomInt(-101, 606);
-    this.y = 54 + row * 84;
-    this.width = 98; //actual width
-    this.height = 60; //actual height
-    this.speed = 100 + getRandomInt(0, 400);
+    Character.call(this, 'images/enemy-bug.png',
+        this.getRandomInt(-101, 606),
+        54 + row * 84);
+    this.speed = 100 + this.getRandomInt(0, 400);
+};
+
+Enemy.prototype = Object.create(Character.prototype);
+
+Enemy.prototype.constructor = Enemy;
+Enemy.prototype.WIDTH = 98;
+Enemy.prototype.HEIGHT = 60;
+
+Enemy.prototype.getRandomInt = function(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 
 // Update the enemy's position, required method for game
@@ -163,10 +168,17 @@ Enemy.prototype.update = function(dt) {
     this.x += dt * this.speed;
 };
 
-// Draw the enemy on the screen, required method for game
-Enemy.prototype.render = function() {
-    ctx.drawImage(Resources.get(this.sprite), this.x, this.y);
+Enemy.prototype.isCollised = function(player) {
+    if (player.realX() < this.realX() + this.WIDTH &&
+        player.realX() + player.WIDTH > this.realX() &&
+        player.realY() < this.realY() + this.HEIGHT &&
+        player.realY() + player.HEIGHT > this.realY()) {
+        // //if player fail, reset the player position, remain the bugs speed.
+        return true;
+    }
+    return false;
 };
+
 
 // count enemy's real x position
 Enemy.prototype.realX = function() {
@@ -178,18 +190,26 @@ Enemy.prototype.realY = function() {
 };
 
 Enemy.prototype.reset = function() {
-    this.speed = 100 + getRandomInt(0, 400);
+    this.speed = 100 + this.getRandomInt(0, 400);
 };
 
 // Now write your own player class
 // This class requires an update(), render() and
 // a handleInput() method.
 var Player = function() {
-    this.sprite = 'images/char-boy.png';
-    this.width = 75; //actual width
-    this.height = 93; //actual height
-    this.reset();
+    Character.call(this, 'images/char-boy.png',
+        202,
+        390);
 };
+
+Player.prototype = Object.create(Character.prototype);
+
+Player.prototype.constructor = Player;
+
+Player.prototype.TILE_WIDTH = 101;
+Player.prototype.TILE_HEIGHT = 83;
+Player.prototype.WIDTH = 75;
+Player.prototype.HEIGHT = 93;
 
 Player.prototype.reset = function() {
     this.x = 202;
@@ -208,16 +228,16 @@ Player.prototype.realY = function() {
 Player.prototype.move = function(dir) {
     switch (dir) {
         case "up":
-            this.y -= 84;
+            this.y -= this.TILE_HEIGHT;
             break;
         case "left":
-            this.x -= 101;
+            this.x -= this.TILE_WIDTH;
             break;
         case "right":
-            this.x += 101;
+            this.x += this.TILE_WIDTH;
             break;
         case "down":
-            this.y += 84;
+            this.y += this.TILE_HEIGHT;
             break;
     }
     if (this.x < 0) this.x = 0;
@@ -230,10 +250,6 @@ Player.prototype.move = function(dir) {
 
 Player.prototype.isInPickerZone = function() {
     return this.x === 0 && this.y === 390;
-};
-
-Player.prototype.render = function() {
-    ctx.drawImage(Resources.get(this.sprite), this.x, this.y);
 };
 
 /*game counter board*/
@@ -318,7 +334,7 @@ CharPicker.prototype.update = function() {
 /*toggle the selector when press "space"*/
 CharPicker.prototype.toggleSelect = function(player) {
     this.isSeleting = !this.isSeleting;
-    if(!this.isSeleting){
+    if (!this.isSeleting) {
         player.sprite = this.charArray[this.curIndex];
     }
 };
